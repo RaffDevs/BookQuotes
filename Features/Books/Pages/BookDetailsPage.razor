@@ -1,0 +1,128 @@
+@page "/books/{BookId:guid}"
+@inject IBookRepository BookRepository
+@inject IHighlightRepository HighlightRepository
+@inject NavigationManager NavigationManager
+
+<PageTitle>Livro</PageTitle>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (_book is null)
+{
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">Livro nao encontrado</MudText>
+        <MudButton Variant="Variant.Outlined" OnClick="GoBack">Voltar</MudButton>
+    </MudStack>
+}
+else
+{
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack">
+                Voltar
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.AddAPhoto"
+                       OnClick="OpenNewHighlight">
+                Novo destaque
+            </MudButton>
+        </MudStack>
+
+        <MudPaper Class="pa-4">
+            <MudGrid AlignItems="AlignItems.Center">
+                <MudItem xs="12" sm="4">
+                    @if (!string.IsNullOrWhiteSpace(_book.CoverImageUrl))
+                    {
+                        <MudImage Src="@_book.CoverImageUrl"
+                                  Alt="@_book.Title"
+                                  Fluid="true"
+                                  Class="rounded-lg" />
+                    }
+                    else
+                    {
+                        <MudPaper Class="d-flex align-center justify-center rounded-lg"
+                                  Style="height:220px; background:linear-gradient(135deg, var(--mud-palette-primary) 0%, var(--mud-palette-secondary) 100%);">
+                            <MudIcon Icon="@Icons.Material.Filled.MenuBook"
+                                     Size="Size.Large"
+                                     Style="color:white;" />
+                        </MudPaper>
+                    }
+                </MudItem>
+
+                <MudItem xs="12" sm="8">
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.h4">@_book.Title</MudText>
+                        <MudText Typo="Typo.body1" Color="Color.Secondary">@_book.Author</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                            Cadastrado em @_book.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
+                        </MudText>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h5">Destaques</MudText>
+            <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">
+                @_highlights.Count destaque(s)
+            </MudChip>
+        </MudStack>
+
+        @if (_isHighlightsLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_highlights.Count == 0)
+        {
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Nenhum destaque salvo</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    Toque em "Novo destaque" para capturar a primeira citacao deste livro.
+                </MudText>
+            </MudPaper>
+        }
+        else
+        {
+            <MudStack Spacing="2">
+                @foreach (var highlight in _highlights)
+                {
+                    <HighlightCard Highlight="highlight" />
+                }
+            </MudStack>
+        }
+    </MudStack>
+}
+
+@code {
+    [Parameter]
+    public Guid BookId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isHighlightsLoading = true;
+    private Book? _book;
+    private List<Highlight> _highlights = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _isHighlightsLoading = true;
+        _book = await BookRepository.GetByIdAsync(BookId);
+        _highlights = (await HighlightRepository.GetByBookIdAsync(BookId)).ToList();
+        _isLoading = false;
+        _isHighlightsLoading = false;
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+    private void OpenNewHighlight()
+    {
+        NavigationManager.NavigateTo($"/books/{BookId}/highlights/new");
+    }
+}

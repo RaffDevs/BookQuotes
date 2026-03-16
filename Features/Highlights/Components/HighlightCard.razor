@@ -1,0 +1,38 @@
+<MudPaper Class="pa-4">
+    <MudStack Spacing="2">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @Highlight.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            </MudText>
+
+            @if (Highlight.PageNumber.HasValue)
+            {
+                <MudChip T="string" Variant="Variant.Outlined" Color="Color.Primary">
+                    Pagina @Highlight.PageNumber.Value
+                </MudChip>
+            }
+        </MudStack>
+
+        <MudText Typo="Typo.body1">@DisplayText</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(Highlight.RawText) &&
+             !string.Equals(Highlight.RawText, Highlight.FinalText, StringComparison.Ordinal))
+        {
+            <MudExpansionPanels>
+                <MudExpansionPanel Text="Texto bruto do OCR">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Highlight.RawText</MudText>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter, EditorRequired]
+    public Highlight Highlight { get; set; } = default!;
+
+    private string DisplayText =>
+        string.IsNullOrWhiteSpace(Highlight.FinalText)
+            ? Highlight.RawText
+            : Highlight.FinalText;
+}

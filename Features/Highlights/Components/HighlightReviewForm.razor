@@ -1,0 +1,152 @@
+<MudPaper Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h6">Texto extraido</MudText>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Psychology"
+                       Disabled="@(IsProcessingOcr || string.IsNullOrWhiteSpace(CroppedImageBase64))"
+                       OnClick="ExtractTextAsync">
+                Extrair texto
+            </MudButton>
+        </MudStack>
+
+        @if (IsProcessingOcr)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                <MudText Typo="Typo.body2">Executando OCR...</MudText>
+            </MudStack>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(CroppedImageBase64))
+        {
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.subtitle2">Imagem para OCR</MudText>
+                <MudPaper Class="ocr-preview-container rounded-lg pa-2">
+                    <img id="@ImageElementId"
+                         src="@CroppedImageBase64"
+                         alt="Imagem recortada para OCR"
+                         class="ocr-preview-image" />
+                </MudPaper>
+            </MudStack>
+        }
+
+        <MudTextField T="string"
+                      Label="Pagina"
+                      Variant="Variant.Outlined"
+                      Value="@PageNumberText"
+                      ValueChanged="OnPageNumberChanged"
+                      Immediate="true" />
+
+        <MudTextField T="string"
+                      Label="Texto revisado"
+                      Variant="Variant.Outlined"
+                      Lines="8"
+                      TextUpdateSuppression="false"
+                      Value="@FinalText"
+                      ValueChanged="OnFinalTextChanged"
+                      Immediate="true" />
+
+        @if (!string.IsNullOrWhiteSpace(RawText))
+        {
+            <MudExpansionPanels>
+                <MudExpansionPanel Text="Texto bruto do OCR">
+                    <MudText Typo="Typo.body2" Style="white-space:pre-wrap;">@RawText</MudText>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   Disabled="@DisableSave"
+                   OnClick="SaveAsync">
+            Salvar destaque
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public string? CroppedImageBase64 { get; set; }
+
+    [Parameter]
+    public bool IsProcessingOcr { get; set; }
+
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    [Parameter]
+    public string ImageElementId { get; set; } = "ocr-source-image";
+
+    [Parameter]
+    public string RawText { get; set; } = string.Empty;
+
+    [Parameter]
+    public string FinalText { get; set; } = string.Empty;
+
+    [Parameter]
+    public int? PageNumber { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnExtractText { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> FinalTextChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<int?> PageNumberChanged { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnSave { get; set; }
+
+    private string PageNumberText => PageNumber?.ToString() ?? string.Empty;
+
+    private bool DisableSave => string.IsNullOrWhiteSpace(FinalText) || IsProcessingOcr || IsSaving;
+
+    private Task ExtractTextAsync()
+    {
+        return OnExtractText.InvokeAsync();
+    }
+
+    private Task SaveAsync()
+    {
+        return OnSave.InvokeAsync();
+    }
+
+    private Task OnFinalTextChanged(string value)
+    {
+        return FinalTextChanged.InvokeAsync(value);
+    }
+
+    private Task OnPageNumberChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return PageNumberChanged.InvokeAsync(null);
+        }
+
+        return int.TryParse(value, out var pageNumber)
+            ? PageNumberChanged.InvokeAsync(pageNumber)
+            : Task.CompletedTask;
+    }
+}
+
+<style>
+    .ocr-preview-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: var(--mud-palette-surface);
+    }
+
+    .ocr-preview-image {
+        display: block;
+        max-width: 100%;
+        max-height: 280px;
+        object-fit: contain;
+        border-radius: 12px;
+    }
+</style>

@@ -1,0 +1,85 @@
+@page "/"
+@inject IBookRepository BookRepository
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+
+<PageTitle>BookQuotes</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h4">Meus livros</MudText>
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateBookDialogAsync">
+            Novo livro
+        </MudButton>
+    </MudStack>
+
+    @if (_isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    }
+    else if (_books.Count == 0)
+    {
+        <MudPaper Class="pa-6">
+            <MudText Typo="Typo.h6">Nenhum livro cadastrado</MudText>
+            <MudText Typo="Typo.body2" Class="mt-2">
+                Cadastre seu primeiro livro para comecar a salvar destaques.
+            </MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var book in _books)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <BookCard Book="book" OnClick="OpenBookDetails" />
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudStack>
+
+@code {
+    private bool _isLoading = true;
+    private List<Book> _books = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBooksAsync();
+    }
+
+    private async Task LoadBooksAsync()
+    {
+        _isLoading = true;
+        _books = (await BookRepository.GetAllAsync()).ToList();
+        _isLoading = false;
+    }
+
+    private void OpenBookDetails(Guid bookId)
+    {
+        NavigationManager.NavigateTo($"/books/{bookId}");
+    }
+
+    private async Task OpenCreateBookDialogAsync()
+    {
+        var dialog = await DialogService.ShowAsync<BookFormDialog>(
+            "Novo livro",
+            new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.Small
+            });
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadBooksAsync();
+        }
+    }
+}

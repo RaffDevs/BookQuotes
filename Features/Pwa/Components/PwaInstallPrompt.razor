@@ -1,0 +1,146 @@
+@implements IAsyncDisposable
+
+@if (_isVisible)
+{
+    <MudPaper Class="pwa-install-banner" Elevation="6">
+        <MudStack Spacing="2">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.subtitle1">Instale o BookQuotes</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        @_message
+                    </MudText>
+                </MudStack>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="DismissAsync" />
+            </MudStack>
+
+            <MudStack Row="true" Spacing="2">
+                @if (_canPromptInstall)
+                {
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               OnClick="InstallAsync">
+                        Instalar app
+                    </MudButton>
+                }
+
+                @if (_showIosInstructions)
+                {
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.IosShare"
+                               OnClick="DismissAsync">
+                        Entendi
+                    </MudButton>
+                }
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    private DotNetObjectReference<PwaInstallPrompt>? _dotNetReference;
+    private bool _isVisible;
+    private bool _canPromptInstall;
+    private bool _showIosInstructions;
+    private string _message = string.Empty;
+
+    [Inject]
+    private IJSRuntime JsRuntime { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _dotNetReference = DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("bookQuotesPwaInstall.initialize", _dotNetReference);
+        await RefreshStateAsync();
+    }
+
+    [JSInvokable]
+    public async Task HandleStateChanged()
+    {
+        await RefreshStateAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshStateAsync()
+    {
+        var state = await JsRuntime.InvokeAsync<PwaInstallState>("bookQuotesPwaInstall.getState");
+
+        _isVisible = state.IsVisible;
+        _canPromptInstall = state.CanPromptInstall;
+        _showIosInstructions = state.ShowIosInstructions;
+        _message = state.Message;
+    }
+
+    private async Task InstallAsync()
+    {
+        var accepted = await JsRuntime.InvokeAsync<bool>("bookQuotesPwaInstall.promptInstall");
+
+        if (!accepted)
+        {
+            return;
+        }
+
+        await RefreshStateAsync();
+    }
+
+    private async Task DismissAsync()
+    {
+        await JsRuntime.InvokeVoidAsync("bookQuotesPwaInstall.dismiss");
+        await RefreshStateAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dotNetReference is not null)
+        {
+            await JsRuntime.InvokeVoidAsync("bookQuotesPwaInstall.dispose");
+            _dotNetReference.Dispose();
+        }
+    }
+
+    private sealed class PwaInstallState
+    {
+        public bool IsVisible { get; set; }
+        public bool CanPromptInstall { get; set; }
+        public bool ShowIosInstructions { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+}
+
+<style>
+    .pwa-install-banner {
+        position: fixed;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        left: 16px;
+        z-index: 1300;
+        padding: 16px;
+        border-radius: 18px;
+        background:
+            linear-gradient(135deg, rgba(3, 23, 61, 0.98) 0%, rgba(24, 81, 164, 0.96) 100%);
+        color: white;
+    }
+
+    .pwa-install-banner .mud-typography,
+    .pwa-install-banner .mud-icon-root {
+        color: white;
+    }
+
+    @@media (min-width: 768px) {
+        .pwa-install-banner {
+            left: auto;
+            width: min(420px, calc(100vw - 32px));
+        }
+    }
+</style>

@@ -1,0 +1,169 @@
+@using Cropper.Blazor.Extensions
+<MudPaper Class="pa-4">
+    <MudStack Spacing="3">
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.h6">Recorte da imagem</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Ajuste a area do destaque antes de extrair o texto.
+            </MudText>
+        </MudStack>
+
+        @if (string.IsNullOrWhiteSpace(ImageSource))
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                Selecione uma imagem para habilitar o recorte.
+            </MudAlert>
+        }
+        else
+        {
+            <div class="cropper-wrapper">
+                <CropperComponent @ref="_cropperComponent"
+                                  Class="cropper-image"
+                                  Src="@ImageSource"
+                                  Options="@_options"
+                                  @key="ImageSource" />
+            </div>
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="ResetCropperAsync">
+                    Resetar
+                </MudButton>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ContentCut"
+                           Disabled="@IsProcessing"
+                           OnClick="ApplyCropAsync">
+                    Gerar recorte
+                </MudButton>
+            </MudStack>
+        }
+
+        @if (IsProcessing)
+        {
+            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Primary" />
+                <MudText Typo="Typo.body2">Gerando imagem recortada...</MudText>
+            </MudStack>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(CroppedImageBase64))
+        {
+            <MudStack Spacing="2">
+                <MudText Typo="Typo.subtitle2">Imagem recortada</MudText>
+                <MudPaper Class="cropped-preview rounded-lg pa-2">
+                    <MudImage Src="@CroppedImageBase64"
+                              Alt="Imagem recortada"
+                              Fluid="true"
+                              Class="cropped-preview-image rounded-lg" />
+                </MudPaper>
+            </MudStack>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private readonly Options _options = new()
+    {
+        ViewMode = ViewMode.Vm1,
+        AutoCrop = true,
+        AutoCropArea = 1,
+        Responsive = true,
+        Background = false,
+        Guides = true
+    };
+
+    private CropperComponent? _cropperComponent;
+
+    [Parameter]
+    public string? ImageSource { get; set; }
+
+    [Parameter]
+    public string? CroppedImageBase64 { get; set; }
+
+    [Parameter]
+    public bool IsProcessing { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnGenerateCrop { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<string> OnCropGenerated { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnCropFailed { get; set; }
+
+    private async Task ApplyCropAsync()
+    {
+        if (_cropperComponent is null)
+        {
+            return;
+        }
+
+        await OnGenerateCrop.InvokeAsync();
+
+        try
+        {
+            var croppedImage = await _cropperComponent.GetCroppedCanvasDataURLAsync(
+                new GetCroppedCanvasOptions
+                {
+                    MaxWidth = 1200,
+                    MaxHeight = 1600,
+                    FillColor = "#ffffff",
+                    ImageSmoothingEnabled = true,
+                    ImageSmoothingQuality = ImageSmoothingQuality.High.ToEnumString()
+                },
+                "image/png",
+                1f,
+                CancellationToken.None);
+            await OnCropGenerated.InvokeAsync(croppedImage);
+        }
+        catch
+        {
+            await OnCropFailed.InvokeAsync();
+        }
+    }
+
+    private async Task ResetCropperAsync()
+    {
+        if (_cropperComponent is null)
+        {
+            return;
+        }
+
+        _cropperComponent.Reset(CancellationToken.None);
+    }
+}
+
+<style>
+    .cropper-wrapper {
+        width: 100%;
+        max-width: 420px;
+        max-height: 420px;
+        margin: 0 auto;
+    }
+
+    .cropper-image {
+        max-height: 420px;
+        max-width: 100%;
+    }
+
+    .cropped-preview {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        aspect-ratio: 4 / 5;
+        max-width: 320px;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .cropped-preview-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+</style>

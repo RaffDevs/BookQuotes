@@ -1,0 +1,212 @@
+@page "/books/{BookId:guid}/highlights/new"
+
+<PageTitle>Novo destaque</PageTitle>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (_book is null)
+{
+    <MudStack Spacing="3">
+        <MudText Typo="Typo.h5">Livro nao encontrado</MudText>
+        <MudButton Variant="Variant.Outlined" OnClick="GoBack">Voltar</MudButton>
+    </MudStack>
+}
+else
+{
+    <MudBreakpointProvider OnBreakpointChanged="OnBreakpointChanged" />
+
+    <MudDrawer @bind-Open="_isCameraDrawerOpen"
+               Anchor="@EditorDrawerAnchor"
+               Variant="DrawerVariant.Temporary"
+               Fixed="true"
+               Height="@CameraDrawerHeight"
+               Width="@CameraDrawerWidth"
+               Overlay="true"
+               OverlayAutoClose="true"
+               Elevation="8"
+               Class="camera-capture-drawer">
+        <MudDrawerHeader>
+            <MudStack Row="true"
+                      Justify="Justify.SpaceBetween"
+                      AlignItems="AlignItems.Center"
+                      Style="width:100%;">
+                <MudText Typo="Typo.h6">Capturar foto</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseCameraDrawerAsync" />
+            </MudStack>
+        </MudDrawerHeader>
+
+        <MudDrawerContainer Class="camera-drawer-content">
+            <ImageCapturePreview ImageBase64="@_imageBase64"
+                                 FileName="@_selectedFileName"
+                                 IsProcessing="@_isProcessingImage"
+                                 AutoStartCamera="@_isCameraDrawerOpen"
+                                 IsMobile="@IsMobile"
+                                 OnClose="CloseCameraDrawerAsync"
+                                 OnImageCaptured="HandleCapturedImageAsync"
+                                 OnImageSelected="HandleImageSelectedAsync" />
+        </MudDrawerContainer>
+    </MudDrawer>
+
+    <MudDrawer @bind-Open="_isEditorDrawerOpen"
+               Anchor="@EditorDrawerAnchor"
+               Variant="DrawerVariant.Temporary"
+               Fixed="true"
+               Height="@EditorDrawerHeight"
+               Width="@EditorDrawerWidth"
+               Overlay="true"
+               OverlayAutoClose="true"
+               Elevation="8"
+               Class="@EditorDrawerClass">
+        <MudDrawerHeader>
+            <MudStack Row="true"
+                      Justify="Justify.SpaceBetween"
+                      AlignItems="AlignItems.Center"
+                      Style="width:100%;">
+                <MudText Typo="Typo.h6">Editar foto</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="CloseEditorDrawerAsync" />
+            </MudStack>
+        </MudDrawerHeader>
+
+        <MudDrawerContainer Class="drawer-content">
+            <ImageCropper ImageSource="@_imageBase64"
+                          CroppedImageBase64="@_croppedImageBase64"
+                          IsProcessing="@_isCroppingImage"
+                          OnGenerateCrop="HandleCropStartedAsync"
+                          OnCropGenerated="HandleCropGeneratedAsync"
+                          OnCropFailed="HandleCropFailedAsync" />
+        </MudDrawerContainer>
+    </MudDrawer>
+
+    <MudStack Spacing="3">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="GoBack">
+                Voltar
+            </MudButton>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Crop"
+                       Disabled="@string.IsNullOrWhiteSpace(_imageBase64)"
+                       OnClick="OpenEditorDrawer">
+                Editar foto
+            </MudButton>
+        </MudStack>
+
+        <MudPaper Class="pa-4">
+            <MudStack Spacing="1">
+                <MudText Typo="Typo.h5">Novo destaque para @_book.Title</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Primeiro vamos capturar a imagem do destaque em uma experiencia de camera dedicada. Depois, a edicao da foto abre em um painel lateral no desktop e em um drawer inferior no mobile.
+                </MudText>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-4">
+            <MudStack Spacing="3">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.h6">Captura da imagem</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Abra a camera para fotografar o destaque e seguir para o recorte.
+                    </MudText>
+                </MudStack>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.PhotoCamera"
+                           OnClick="OpenCameraDrawer">
+                    Abrir camera
+                </MudButton>
+
+                @if (!string.IsNullOrWhiteSpace(_imageBase64))
+                {
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">Ultima captura</MudText>
+                        <MudPaper Class="capture-summary-preview rounded-lg pa-2">
+                            <MudImage Src="@_imageBase64"
+                                      Alt="Ultima foto capturada"
+                                      Fluid="true"
+                                      Class="capture-summary-image rounded-lg" />
+                        </MudPaper>
+                    </MudStack>
+                }
+            </MudStack>
+        </MudPaper>
+
+        @if (!string.IsNullOrWhiteSpace(_croppedImageBase64))
+        {
+            <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">
+                Recorte gerado com sucesso. Agora voce ja pode extrair e revisar o texto.
+            </MudAlert>
+
+            <HighlightReviewForm CroppedImageBase64="@_croppedImageBase64"
+                                 ImageElementId="@OcrImageElementId"
+                                 IsProcessingOcr="@_isProcessingOcr"
+                                 IsSaving="@_isSavingHighlight"
+                                 RawText="@_rawExtractedText"
+                                 FinalText="@_finalText"
+                                 PageNumber="@_pageNumber"
+                                 OnExtractText="ExtractTextAsync"
+                                 FinalTextChanged="HandleFinalTextChanged"
+                                 PageNumberChanged="HandlePageNumberChanged"
+                                 OnSave="SaveHighlightAsync" />
+        }
+    </MudStack>
+}
+
+<style>
+    .camera-capture-drawer {
+        padding-bottom: env(safe-area-inset-bottom);
+        overflow: hidden;
+        background: #0a0a0a;
+    }
+
+    .highlight-editor-drawer {
+        padding-bottom: env(safe-area-inset-bottom);
+        overflow: hidden;
+    }
+
+    .camera-drawer-content {
+        padding: 0;
+        overflow-y: auto;
+        display: block;
+        height: 100%;
+        max-height: calc(100dvh - 56px);
+        background: #0a0a0a;
+    }
+
+    .drawer-content {
+        padding: 0 16px 16px 16px;
+        overflow-y: auto;
+        display: block;
+        height: 100%;
+        max-height: calc(100dvh - 56px);
+    }
+
+    .mobile-drawer {
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        max-height: 92dvh !important;
+    }
+
+    .desktop-drawer {
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+    }
+
+    .capture-summary-preview {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        aspect-ratio: 4 / 5;
+        max-width: 280px;
+        overflow: hidden;
+    }
+
+    .capture-summary-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+</style>

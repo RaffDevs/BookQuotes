@@ -1,0 +1,41 @@
+<MudCard Class="book-card" Style="cursor:pointer; overflow:hidden;" @onclick="HandleClickAsync">
+    @if (!string.IsNullOrWhiteSpace(Book.CoverImageUrl))
+    {
+        <MudCardMedia Image="@Book.CoverImageUrl"
+                      Height="220"
+                      Title="@Book.Title" />
+    }
+    else
+    {
+        <MudPaper Class="d-flex align-center justify-center"
+                  Square="true"
+                  Style="height:220px; background:linear-gradient(135deg, var(--mud-palette-primary) 0%, var(--mud-palette-secondary) 100%);">
+            <MudIcon Icon="@Icons.Material.Filled.MenuBook"
+                     Size="Size.Large"
+                     Style="color:white;" />
+        </MudPaper>
+    }
+
+    <MudCardContent>
+        <MudStack Spacing="1">
+            <MudText Typo="Typo.h6">@Book.Title</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Book.Author</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                Criado em @Book.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")
+            </MudText>
+        </MudStack>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public Book Book { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<Guid> OnClick { get; set; }
+
+    private Task HandleClickAsync()
+    {
+        return OnClick.InvokeAsync(Book.Id);
+    }
+}

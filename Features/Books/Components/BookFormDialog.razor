@@ -1,0 +1,82 @@
+@inject IBookRepository BookRepository
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudStack Spacing="3">
+                <MudTextField @bind-Value="_model.Title"
+                              Label="Titulo"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Informe o titulo do livro." />
+
+                <MudTextField @bind-Value="_model.Author"
+                              Label="Autor"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Informe o autor do livro." />
+
+                <MudTextField @bind-Value="_model.CoverImageUrl"
+                              Label="URL da capa"
+                              Variant="Variant.Outlined" />
+            </MudStack>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleSubmitAsync">
+            Salvar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private MudForm? _form;
+    private CreateBookModel _model = new();
+
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private async Task HandleSubmitAsync()
+    {
+        if (_form is null)
+        {
+            return;
+        }
+
+        await _form.Validate();
+
+        if (!_form.IsValid)
+        {
+            return;
+        }
+
+        var book = new Book
+        {
+            Title = _model.Title.Trim(),
+            Author = _model.Author.Trim(),
+            CoverImageUrl = string.IsNullOrWhiteSpace(_model.CoverImageUrl)
+                ? null
+                : _model.CoverImageUrl.Trim()
+        };
+
+        await BookRepository.AddAsync(book);
+
+        Snackbar.Add("Livro cadastrado com sucesso.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private sealed class CreateBookModel
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Author { get; set; } = string.Empty;
+        public string? CoverImageUrl { get; set; }
+    }
+}
